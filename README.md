@@ -1,6 +1,11 @@
 # EasyFin-autotests-Python
 
 
+# python --version
+# Create virtual environment with the command: python -m venv easy_fin_venv
+# poetry env info
+# pip install poetry
+# poetry install
 
 ## Getting started
 

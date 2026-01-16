@@ -1,0 +1,29 @@
+stages:
+  - test
+  - report
+
+variables:
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+
+mobile_tests:
+  stage: test
+  tags:
+    - mobile-runner  # Ensure your local runner has this tag
+  before_script:
+    - poetry install
+    - appium &  # Start Appium server in background
+  script:
+    - poetry run pytest --platform=android --alluredir=allure-results
+  artifacts:
+    when: always
+    paths:
+      - allure-results/
+    expire_in: 1 day
+
+allure_report:
+  stage: report
+  script:
+    - allure generate allure-results -o allure-report --clean
+  artifacts:
+    paths:
+      - allure-report/

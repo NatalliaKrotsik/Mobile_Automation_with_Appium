@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "easyfin-autotests-python"
+version = "0.1.0"
+description = "Professional Python UI & API Automation Framework"
+authors = ["n.krotsik@andersenlab.com"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pytest = "^8.0.0"
+pytest-xdist = "^3.5.0"
+allure-pytest = "^2.13.0"
+PyYAML = "^6.0.1"
+requests = "^2.31.0"
+Appium-Python-Client = "^4.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.7.0"]
+build-backend = "poetry.core.masonry.api"
