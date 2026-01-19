@@ -1,29 +1,52 @@
 stages:
+  - setup
   - test
   - report
 
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
+# Optional: Separate setup to cache dependencies
+install_deps:
+  stage: setup
+  tags:
+    - mobile-runner
+  script:
+    - poetry install
+  artifacts:
+    paths:
+      - .venv/
+
 mobile_tests:
   stage: test
   tags:
-    - mobile-runner  # Ensure your local runner has this tag
+    - mobile-runner
   before_script:
-    - poetry install
-    - appium &  # Start Appium server in background
+    # Ensure Appium is installed on the runner and start it
+    - appium &
+    - sleep 5 # Give Appium time to spin up
   script:
-    - poetry run pytest --platform=android --alluredir=allure-results
+    - poetry run pytest --platform=android --alluredir=report/allure-results
   artifacts:
     when: always
     paths:
-      - allure-results/
-    expire_in: 1 day
+      - report/allure-results
+    expire_in: 1 week
+  after_script:
+    - echo "Cleaning up the device for the next run..."
+    # Replace 'com.andersenlab.easyfin' with the name from 'adb shell dumpsys window | findstr mCurrentFocus'
+    - adb shell pm clear com.andersenlab.easyfin
+    - adb shell am force-stop com.andersenlab.easyfin
 
 allure_report:
   stage: report
+  tags:
+    - mobile-runner
+  when: always
   script:
-    - allure generate allure-results -o allure-report --clean
+    # Fix: Point to the correct path generated in the previous step
+    - allure generate report/allure-results -o report/allure-report --clean
   artifacts:
     paths:
-      - allure-report/
+      - report/allure-report
+    expire_in: 7 days

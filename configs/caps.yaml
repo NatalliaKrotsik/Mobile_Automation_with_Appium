@@ -1,0 +1,11 @@
+android:
+  platformName: "Android"
+  automationName: "UiAutomator2"
+  deviceName: "emulator-554"
+  app: "./apps/easyfin-debug.apk"
+
+ios:
+  platformName: "iOS"
+  automationName: "XCUITest"
+  deviceName: "iPhone 15"
+  app: "./apps/easyfin-debug.app"
