@@ -22,16 +22,15 @@ mobile_tests:
   tags:
     - mobile-runner
   before_script:
-    # Ensure Appium is installed on the runner and start it
-    - appium &
-    - sleep 5 # Give Appium time to spin up
+    # Use 'Start-Process' for a cleaner background start on Windows PowerShell
+    - Start-Process appium -NoNewWindow
+    - Start-Sleep -s 10
   script:
     - poetry run pytest --platform=android --alluredir=report/allure-results
   artifacts:
     when: always
     paths:
       - report/allure-results
-    expire_in: 1 week
   after_script:
     - echo "Cleaning up the device for the next run..."
     # Replace 'com.andersenlab.easyfin' with the name from 'adb shell dumpsys window | findstr mCurrentFocus'
@@ -49,4 +48,3 @@ allure_report:
   artifacts:
     paths:
       - report/allure-report
-    expire_in: 7 days
