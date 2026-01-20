@@ -1,0 +1,4 @@
+builds/
+.venv/
+__pycache__/
+*.tmp

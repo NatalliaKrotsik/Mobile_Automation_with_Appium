@@ -32,7 +32,7 @@ mobile_tests:
     paths:
       - report/allure-results
   after_script:
-    - echo "Cleaning up the device for the next run..."
+    - echo "Cleaning up the device..."
     # Replace 'com.andersenlab.easyfin' with the name from 'adb shell dumpsys window | findstr mCurrentFocus'
     - adb shell pm clear com.andersenlab.easyfin
     - adb shell am force-stop com.andersenlab.easyfin

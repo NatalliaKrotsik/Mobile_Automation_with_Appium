@@ -3,5 +3,6 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/builds/yhzv_srwu/0/Andersen/easyfin/easyfin-autotests-python" vcs="Git" />
   </component>
 </project>
