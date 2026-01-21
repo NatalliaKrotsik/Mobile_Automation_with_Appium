@@ -31,10 +31,10 @@ mobile_tests:
     # 2. Run your tests (use forward slashes for the alluredir path)
     - poetry run pytest --alluredir=report/allure-results
   artifacts:
-  when: always
-  paths:
+    when: always
+    paths:
         # Use the relative path from the project root
-    - report/allure-results/
+      - report/allure-results/
   after_script:
     - echo "Cleaning up the device..."
     # Replace 'com.andersenlab.easyfin' with the name from 'adb shell dumpsys window | findstr mCurrentFocus'
