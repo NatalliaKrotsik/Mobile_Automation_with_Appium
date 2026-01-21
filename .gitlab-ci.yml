@@ -26,14 +26,15 @@ mobile_tests:
     - Start-Process appium -NoNewWindow
     - Start-Sleep -s 10
   script:
-    # Ensure the directory is created before running tests
-    - mkdir -p report/allure-results
-    # Run pytest and point specifically to that folder
+    # 1. Force create the folder to ensure it exists even if tests fail
+    - if not exist report\allure-results mkdir report\allure-results
+    # 2. Run your tests (use forward slashes for the alluredir path)
     - poetry run pytest --alluredir=report/allure-results
   artifacts:
-    when: always
-    paths:
-      - report/allure-results
+  when: always
+  paths:
+        # Use the relative path from the project root
+    - report/allure-results/
   after_script:
     - echo "Cleaning up the device..."
     # Replace 'com.andersenlab.easyfin' with the name from 'adb shell dumpsys window | findstr mCurrentFocus'
