@@ -54,20 +54,20 @@ allure_report:
     paths:
       - report/allure-report
 
-  pages:
-    stage: deploy
-    tags:
-      - mobile-runner
-    script:
-      # 1. Run the allure generation directly into the 'allure-report' folder
-      - ' "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report '
-      # 2. Clean up old public folder if it exists
-      - if exist public rd /s /q public
-      - mkdir public
-      # 3. Copy everything to public (required name for GitLab Pages)
-      - xcopy /s /e /y allure-report\* public\
-    artifacts:
-      paths:
-        - public
-    rules:
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+pages:
+  stage: deploy
+  tags:
+    - mobile-runner
+  script:
+    # 1. Run allure generation to create the dashboard
+    - ' "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report '
+    # 2. Prepare the mandatory 'public' directory for GitLab Pages
+    - if exist public rd /s /q public
+    - mkdir public
+    # 3. Copy generated files to public so they can be hosted
+    - xcopy /s /e /y allure-report\* public\
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
