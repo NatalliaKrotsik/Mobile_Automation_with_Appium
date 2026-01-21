@@ -57,9 +57,7 @@ allure_report:
   pages:
     stage: deploy
     script:
-      # Use the full path in quotes (quotes are important because of spaces or dots in names)
       - "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report
-      # 2. Move the generated report into the 'public' folder for GitLab Pages
       - if exist public rd /s /q public
       - mkdir public
       - xcopy /s /e /y allure-report\* public\
@@ -67,4 +65,4 @@ allure_report:
       paths:
         - public
     rules:
-      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  # Usually runs on 'main'
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
