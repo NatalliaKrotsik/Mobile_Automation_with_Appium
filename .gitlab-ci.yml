@@ -52,19 +52,17 @@ allure_report:
     - ' "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report '
   artifacts:
     paths:
-      - report/allure-report
+      - allure-report/
 
 pages:
   stage: deploy
   tags:
     - mobile-runner
   script:
-    # 1. Run allure generation to create the dashboard
-    - ' "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report '
-    # 2. Prepare the mandatory 'public' directory for GitLab Pages
+    # 1. Re-generate or move the report into the 'public' folder
     - if exist public rd /s /q public
     - mkdir public
-    # 3. Copy generated files to public so they can be hosted
+    # 2. Use xcopy to move the files (using dot to signify 'current directory content')
     - xcopy /s /e /y allure-report\* public\
   artifacts:
     paths:
