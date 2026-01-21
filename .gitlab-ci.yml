@@ -48,18 +48,23 @@ allure_report:
     - mobile-runner
   when: always
   script:
-    # Fix: Point to the correct path generated in the previous step
-    - allure generate report/allure-results -o report/allure-report --clean
+    # Use the full path here too if 'allure' isn't in your PATH
+    - ' "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report '
   artifacts:
     paths:
       - report/allure-report
 
   pages:
     stage: deploy
+    tags:
+      - mobile-runner
     script:
+      # 1. Run the allure generation directly into the 'allure-report' folder
       - ' "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report '
+      # 2. Clean up old public folder if it exists
       - if exist public rd /s /q public
       - mkdir public
+      # 3. Copy everything to public (required name for GitLab Pages)
       - xcopy /s /e /y allure-report\* public\
     artifacts:
       paths:
