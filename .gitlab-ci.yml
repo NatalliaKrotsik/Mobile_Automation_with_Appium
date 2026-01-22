@@ -58,11 +58,13 @@ pages:
   stage: deploy
   tags:
     - mobile-runner
+  dependencies:
+    - allure_report  # Explicitly pull artifacts from the report job
   script:
-    # 1. Re-generate or move the report into the 'public' folder
-    - if exist public rd /s /q public
-    - mkdir public
-    # 2. Use xcopy to move the files (using dot to signify 'current directory content')
+    # 1. Clean up the public folder if it exists (using PowerShell syntax for your runner)
+    - if (Test-Path public) { Remove-Item -Recurse -Force public }
+    - New-Item -ItemType Directory -Path public
+    # 2. Copy all files from allure-report to public
     - xcopy /s /e /y allure-report\* public\
   artifacts:
     paths:
