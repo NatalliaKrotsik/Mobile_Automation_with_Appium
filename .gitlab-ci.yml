@@ -48,23 +48,26 @@ allure_report:
     - mobile-runner
   when: always
   script:
-    # Use the full path here too if 'allure' isn't in your PATH
-    - ' "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results --clean -o allure-report '
+    # Use quotes for paths with colons or special characters
+    - '"C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results -o allure-report --clean'
   artifacts:
     paths:
       - allure-report/
+    expire_in: 1 day
 
 pages:
   stage: deploy
   tags:
     - mobile-runner
-  dependencies:
-    - allure_report  # Explicitly pull artifacts from the report job
+  # THIS IS THE KEY FIX: It downloads the allure-report folder from the previous job
+  needs:
+    - job: allure_report
+      artifacts: true
   script:
-    # 1. Clean up the public folder if it exists (using PowerShell syntax for your runner)
+    # 1. Ensure a clean 'public' folder using PowerShell syntax
     - if (Test-Path public) { Remove-Item -Recurse -Force public }
     - New-Item -ItemType Directory -Path public
-    # 2. Copy all files from allure-report to public
+    # 2. Copy the downloaded 'allure-report' contents into 'public'
     - xcopy /s /e /y allure-report\* public\
   artifacts:
     paths:
