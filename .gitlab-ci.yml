@@ -24,12 +24,13 @@ mobile_tests:
     - mobile-runner
   before_script:
     # 1. Check if an emulator is already running
-    - $emulatorRunning = adb devices | Select-String-Pattern "\tdevice$"
-    - if (-not $emulatorRunning) {
-      Write-Host "No emulator detected. Starting headless emulator..."
-      # Replace 'Pixel_7_API_33' with your actual AVD name
-      Start-Process "C:\Users\n.krotsik\AppData\Local\Android\Sdk\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio" -NoNewWindow
-      Start-Sleep -s 30
+    - |
+      $emulatorRunning = adb devices | Select-String -Pattern "\tdevice$"
+      if (-not $emulatorRunning) {
+        Write-Host "No emulator detected. Starting headless emulator..."
+        # Replace 'Pixel_7_API_33' with your actual AVD name
+        Start-Process "C:\Users\n.krotsik\AppData\Local\Android\Sdk\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio" -NoNewWindow
+        Start-Sleep -s 30
       }
     # 2. Start Appium
     - Start-Process appium -NoNewWindow
