@@ -24,7 +24,7 @@ mobile_tests:
     - mobile-runner
   before_script:
     # 1. Check if an emulator is already running
-    - $emulatorRunning = adb devices | Select-String -Pattern "\tdevice$"
+    - $emulatorRunning = adb devices | Select-String-Pattern "\tdevice$"
     - if (-not $emulatorRunning) {
       Write-Host "No emulator detected. Starting headless emulator..."
       # Replace 'Pixel_7_API_33' with your actual AVD name
