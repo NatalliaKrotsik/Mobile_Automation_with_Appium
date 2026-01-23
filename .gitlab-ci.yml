@@ -48,8 +48,11 @@ allure_report:
     - mobile-runner
   when: always
   script:
-    # Generate directly to a folder in the root directory
-    - '"C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results -o allure-report --clean'
+    # 1. Force the creation of the output directory in the root
+    - if not exist "allure-report" mkdir "allure-report"
+    # 2. Use the EXACT path shown in your file tree for results
+    # We use ./ to ensure we stay in the current build directory
+    - '"C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate ./report/allure-results -o ./allure-report --clean'
   artifacts:
     paths:
       - allure-report/
@@ -62,10 +65,10 @@ pages:
   dependencies:
     - allure_report
   script:
-    # Use PowerShell to ensure public is clean
+    # Use PowerShell to ensure public is clean and fresh
     - if (Test-Path public) { Remove-Item -Recurse -Force public }
     - New-Item -ItemType Directory -Path public
-    # Copy from the root allure-report folder
+    # Copy using the dot slash to be explicit for Windows
     - xcopy /s /e /y "allure-report\*" "public\"
   artifacts:
     paths:
