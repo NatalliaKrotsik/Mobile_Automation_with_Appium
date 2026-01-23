@@ -48,25 +48,25 @@ allure_report:
     - mobile-runner
   when: always
   script:
+    # Generate directly to a folder in the root directory
     - '"C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate report/allure-results -o allure-report --clean'
   artifacts:
     paths:
-      - report/allure-report/
+      - allure-report/
     expire_in: 1 day
 
 pages:
   stage: deploy
   tags:
     - mobile-runner
-  # This links the jobs so 'allure-report' is downloaded here
   dependencies:
     - allure_report
   script:
-    # 1. Cleanly handle the 'public' folder in PowerShell
+    # Use PowerShell to ensure public is clean
     - if (Test-Path public) { Remove-Item -Recurse -Force public }
     - New-Item -ItemType Directory -Path public
-    # 2. Copy the files
-    - xcopy /s /e /y allure-report\* public\
+    # Copy from the root allure-report folder
+    - xcopy /s /e /y "allure-report\*" "public\"
   artifacts:
     paths:
       - public
