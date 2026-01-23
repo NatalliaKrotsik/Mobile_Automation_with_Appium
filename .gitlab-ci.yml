@@ -72,7 +72,7 @@ pages:
   tags:
     - mobile-runner
   dependencies:
-    - allure_report
+    - allure-report
   script:
     # Use PowerShell to ensure public is clean and fresh
     - if (Test-Path public) { Remove-Item -Recurse -Force public }
