@@ -28,18 +28,25 @@ mobile_tests:
       $emulatorRunning = adb devices | Select-String -Pattern "\tdevice$"
       if (-not $emulatorRunning) {
         Write-Host "No emulator detected. Starting headless emulator..."
-        # Replace 'Pixel_7_API_33' with your actual AVD name
-        Start-Process "C:\Users\n.krotsik\AppData\Local\Android\Sdk\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio" -NoNewWindow
-        Start-Sleep -s 30
+        Start-Process "C:\Users\n.krotsik\AppData\Local\Android\Sdk\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -selinux permissive" -NoNewWindow
+        
+        Write-Host "Waiting for Android to boot..."
+        $booted = $false
+        while (-not $booted) {
+          $status = adb shell getprop sys.boot_completed
+          if ($status -eq "1") { $booted = $true }
+          else { Start-Sleep -s 5; Write-Host "Still booting..." }
+        }
+        Write-Host "Emulator is ready!"
       }
-    # 2. Start Appium
-    - Start-Process appium -NoNewWindow
-    - Start-Sleep -s 10
-  script:
-    # 1. Create results directory if it doesn't exist (PowerShell syntax)
-    - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
 
-    # 2. Run tests with PYTHONPATH set so 'framework' is found
+    # 2. Start Appium (The Fix for the Win32 Error)
+    - Write-Host "Starting Appium Server..."
+    - Start-Process cmd.exe -ArgumentList "/c appium" -NoNewWindow
+    - Start-Sleep -s 10
+
+  script:
+    - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
     - $env:PYTHONPATH = "."
     - poetry run pytest tests/test_login_navigation.py --alluredir=allure-results
 
@@ -49,9 +56,9 @@ mobile_tests:
     - adb shell am force-stop com.andersenlab.easyfin
 
   artifacts:
-    when: always  # This ensures artifacts upload even if the test fails
+    when: always
     paths:
-      - allure-results/
+      - allure-results/*
     expire_in: 1 day
 
 allure_report:
