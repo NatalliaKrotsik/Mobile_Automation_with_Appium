@@ -36,23 +36,23 @@ mobile_tests:
     - Start-Process appium -NoNewWindow
     - Start-Sleep -s 10
   script:
-    - if (Test-Path allure-results) { Remove-Item -Recurse -Force allure-results }
-    # 1. Force create the folder to ensure it exists even if tests fail
-    - if not exist allure-results mkdir allure-results
-    # 2. Run your tests (use forward slashes for the alluredir path)
-    - poetry run pytest --alluredir=allure-results
-  artifacts:
-    when: always
-    paths:
-        # Use the relative path from the project root
-      - allure-results/
-    expire_in: 1 day
+    # 1. Create results directory if it doesn't exist (PowerShell syntax)
+    - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
+
+    # 2. Run tests with PYTHONPATH set so 'framework' is found
+    - $env:PYTHONPATH = "."
+    - poetry run pytest tests/test_login_navigation.py --alluredir=allure-results
 
   after_script:
     - echo "Cleaning up the device..."
-    # Replace 'com.andersenlab.easyfin' with the name from 'adb shell dumpsys window | findstr mCurrentFocus'
     - adb shell pm clear com.andersenlab.easyfin
     - adb shell am force-stop com.andersenlab.easyfin
+
+  artifacts:
+    when: always  # This ensures artifacts upload even if the test fails
+    paths:
+      - allure-results/
+    expire_in: 1 day
 
 allure_report:
   stage: report
