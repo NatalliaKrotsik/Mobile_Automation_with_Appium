@@ -2,3 +2,5 @@ builds/
 .venv/
 __pycache__/
 *.tmp
+allure-results/
+allure-report/

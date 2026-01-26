@@ -36,6 +36,7 @@ mobile_tests:
     - Start-Process appium -NoNewWindow
     - Start-Sleep -s 10
   script:
+    - if (Test-Path allure-results) { Remove-Item -Recurse -Force allure-results }
     # 1. Force create the folder to ensure it exists even if tests fail
     - if not exist allure-results mkdir allure-results
     # 2. Run your tests (use forward slashes for the alluredir path)
@@ -45,6 +46,8 @@ mobile_tests:
     paths:
         # Use the relative path from the project root
       - allure-results/
+    expire_in: 1 day
+
   after_script:
     - echo "Cleaning up the device..."
     # Replace 'com.andersenlab.easyfin' with the name from 'adb shell dumpsys window | findstr mCurrentFocus'
