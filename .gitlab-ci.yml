@@ -6,9 +6,9 @@ stages:
 
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
-  ANDROID_HOME: "C:\\Users\\n.krotsik\\AppData\\Local\\Android\\Sdk"
-  ADB_EXE: "C:\\Users\\n.krotsik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe"
-  ALLURE_PATH: "C:\\Users\\n.krotsik\\Desktop\\EasyFin\\allure-2.36.0\\allure-2.36.0\\bin\\allure.bat"
+  ANDROID_HOME: $env:ANDROID_HOME
+  ADB_EXE: $env:ADB_EXE
+  ALLURE_PATH: $env:ALLURE_PATH
 
 install_deps:
   stage: setup
@@ -30,18 +30,13 @@ mobile_tests:
 
     # Load environment variables from .env
     - .\load_env.ps1
-    # 0. Safe cleanup of existing processes (non-fatal)
+    # 0. Optimization: Only kill Appium (node), NOT the emulator.
+    # This keeps the emulator 'warm' between runs.
     - |
-      $procNames = "emulator-arm", "qemu-system-x86_64", "node"
-      foreach ($name in $procNames) {
-        try {
-          $p = Get-Process -Name $name -ErrorAction Stop
-          if ($p) { $p | Stop-Process -Force }
-          Write-Host "Stopped process: $name"
-        } catch {
-          Write-Host "Process $name not running"
-        }
-      }
+      try {
+        $p = Get-Process -Name "node" -ErrorAction SilentlyContinue
+        if ($p) { $p | Stop-Process -Force; Write-Host "Stopped Appium (node)" }
+      } catch { }
 
     # 0b. Restart ADB server (handle spaces safely)
     - if (Test-Path "$env:ADB_EXE") { & "$env:ADB_EXE" kill-server; & "$env:ADB_EXE" start-server }
