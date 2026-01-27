@@ -97,7 +97,7 @@ allure_report:
   script:
     - if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
     # Fix: Use double quotes for the path and call operator
-    - & "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean
+    - & \"$env:ALLURE_PATH"\ generate ./allure-results -o ./allure-report --clean
   artifacts:
     paths:
       - allure-report/
