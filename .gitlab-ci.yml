@@ -30,16 +30,6 @@ mobile_tests:
 
     # Load environment variables from .env
     - .\load_env.ps1
-    # 0. Optimization: Only kill Appium (node), NOT the emulator.
-    # This keeps the emulator 'warm' between runs.
-    - |
-      try {
-        $p = Get-Process -Name "node" -ErrorAction SilentlyContinue
-        if ($p) { $p | Stop-Process -Force; Write-Host "Stopped Appium (node)" }
-      } catch { }
-
-    # 0b. Restart ADB server (handle spaces safely)
-    - if (Test-Path "$env:ADB_EXE") { & "$env:ADB_EXE" kill-server; & "$env:ADB_EXE" start-server }
 
     # 1. Start/Check Emulator
     - |
