@@ -95,9 +95,9 @@ allure_report:
     - mobile_tests
   when: always
   script:
-    - if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
-    # Fix: Use double quotes for the path and call operator
-    - & \"$env:ALLURE_PATH"\ generate ./allure-results -o ./allure-report --clean
+    - |
+      if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
+      & "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean
   artifacts:
     paths:
       - allure-report/
