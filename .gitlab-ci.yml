@@ -29,7 +29,7 @@ mobile_tests:
   dependencies:
     - install_deps
   before_script:
-    # 0. Safe cleanup: Check for running processes first to avoid exit code errors
+    # 0. Safe cleanup
     - |
       $procNames = "emulator-arm", "qemu-system-x86_64", "node"
       foreach ($name in $procNames) {
@@ -39,9 +39,8 @@ mobile_tests:
               $p | Stop-Process -Force 
           }
       }
-    # Use the specific SDK ADB
-    - "& '$env:ADB_EXE' kill-server"
-    - "& '$env:ADB_EXE' start-server"
+    # Fix: Double quotes allow $env variable expansion while handling spaces
+    - if (Test-Path "$env:ADB_EXE") { & "$env:ADB_EXE" kill-server; & "$env:ADB_EXE" start-server }
 
     # 1. Start/Check Emulator
     - |
@@ -58,7 +57,7 @@ mobile_tests:
         $timer = 0
         while (-not $booted -and $timer -lt 40) {
           $status = & "$env:ADB_EXE" shell getprop sys.boot_completed
-          if ($status.Trim() -eq "1") { 
+          if ($status -and $status.Trim() -eq "1") { 
             $booted = $true 
             Write-Host "Emulator is ready!"
           } else { 
@@ -78,13 +77,11 @@ mobile_tests:
   script:
     - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
     - $env:PYTHONPATH = "."
-    # Ensure pytest uses the SDK path for its internal calls if needed
-    - poetry run pytest tests/test_login_navigation.py --alluredir=allure-results
+    - poetry run pytest tests/test_login_navigation.py
 
   after_script:
     - echo "Cleaning up the device..."
-    - "& '$env:ADB_EXE' shell pm clear com.andersenlab.easyfin"
-    - "& '$env:ADB_EXE' am force-stop com.andersenlab.easyfin"
+    - if (Test-Path "$env:ADB_EXE") { & "$env:ADB_EXE" shell pm clear com.andersenlab.easyfin; & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin }
 
   artifacts:
     when: always
@@ -101,7 +98,8 @@ allure_report:
   when: always
   script:
     - if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
-    - '& "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean'
+    # Fix: Use double quotes for the path and call operator
+    - & "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean
   artifacts:
     paths:
       - allure-report/
