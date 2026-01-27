@@ -6,8 +6,9 @@ stages:
 
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
-  # Use double backslashes for Windows paths in variables
   ANDROID_HOME: "C:\\Users\\n.krotsik\\AppData\\Local\\Android\\Sdk"
+  # Hardcoding the ADB path ensures we don't use the Desktop version by mistake
+  ADB_EXE: "C:\\Users\\n.krotsik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe"
   ALLURE_PATH: "C:\\Users\\n.krotsik\\Desktop\\EasyFin\\allure-2.36.0\\allure-2.36.0\\bin\\allure.bat"
 
 install_deps:
@@ -28,26 +29,45 @@ mobile_tests:
   dependencies:
     - install_deps
   before_script:
-    # 0. Clean up any hanging processes from previous failed runs
-    - Stop-Process -Name "emulator-arm", "qemu-system-x86_64", "node" -ErrorAction SilentlyContinue
-    - adb kill-server
-    - adb start-server
+    # 0. Safe cleanup: Check for running processes first to avoid exit code errors
+    - |
+      $procNames = "emulator-arm", "qemu-system-x86_64", "node"
+      foreach ($name in $procNames) {
+          $p = Get-Process -Name $name -ErrorAction SilentlyContinue
+          if ($p) { 
+              Write-Host "Stopping existing process: $name"
+              $p | Stop-Process -Force 
+          }
+      }
+    # Use the specific SDK ADB
+    - "& '$env:ADB_EXE' kill-server"
+    - "& '$env:ADB_EXE' start-server"
 
     # 1. Start/Check Emulator
     - |
-      $emulatorRunning = adb devices | Select-String -Pattern "\tdevice$"
+      $emulatorRunning = & "$env:ADB_EXE" devices | Select-String -Pattern "\tdevice$"
       if (-not $emulatorRunning) {
-        Write-Host "Starting headless emulator..."
-        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -selinux permissive" -NoNewWindow
+        Write-Host "Starting headless emulator from SDK..."
+        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -read-only" -NoNewWindow
         
-        Write-Host "Waiting for Android to boot..."
+        Write-Host "Waiting for ADB to detect device..."
+        & "$env:ADB_EXE" wait-for-device
+        
+        Write-Host "Waiting for Android OS boot..."
         $booted = $false
-        while (-not $booted) {
-          $status = adb shell getprop sys.boot_completed
-          if ($status -eq "1") { $booted = $true }
-          else { Start-Sleep -s 5; Write-Host "Still booting..." }
+        $timer = 0
+        while (-not $booted -and $timer -lt 40) {
+          $status = & "$env:ADB_EXE" shell getprop sys.boot_completed
+          if ($status.Trim() -eq "1") { 
+            $booted = $true 
+            Write-Host "Emulator is ready!"
+          } else { 
+            Start-Sleep -s 5
+            $timer++
+            Write-Host "Still booting (Attempt $timer)..." 
+          }
         }
-        Write-Host "Emulator is ready!"
+        if (-not $booted) { throw "Emulator failed to boot within timeout." }
       }
 
     # 2. Start Appium Server
@@ -58,12 +78,13 @@ mobile_tests:
   script:
     - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
     - $env:PYTHONPATH = "."
+    # Ensure pytest uses the SDK path for its internal calls if needed
     - poetry run pytest tests/test_login_navigation.py --alluredir=allure-results
 
   after_script:
     - echo "Cleaning up the device..."
-    - adb shell pm clear com.andersenlab.easyfin -ErrorAction SilentlyContinue
-    - adb shell am force-stop com.andersenlab.easyfin -ErrorAction SilentlyContinue
+    - "& '$env:ADB_EXE' shell pm clear com.andersenlab.easyfin"
+    - "& '$env:ADB_EXE' am force-stop com.andersenlab.easyfin"
 
   artifacts:
     when: always
@@ -80,7 +101,6 @@ allure_report:
   when: always
   script:
     - if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
-    # Generate report using the absolute path variable
     - '& "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean'
   artifacts:
     paths:
@@ -96,7 +116,6 @@ pages:
   script:
     - if (Test-Path public) { Remove-Item -Recurse -Force public }
     - New-Item -ItemType Directory -Path public
-    # Using PowerShell Copy-Item for better reliability in CI
     - Copy-Item -Path "allure-report\*" -Destination "public\" -Recurse -Force
   artifacts:
     paths:

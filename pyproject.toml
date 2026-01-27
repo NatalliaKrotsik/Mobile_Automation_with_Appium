@@ -8,12 +8,24 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"
-pytest = "^8.0.0"
+# Core Testing Framework
+pytest = "8.3.5"
 pytest-xdist = "^3.5.0"
-allure-pytest = "^2.13.0"
+allure-pytest = "2.14.2"
+# Mobile & Web Drivers
+Appium-Python-Client = "^4.0.0"
+playwright = "0.7.0"
+# Utilities & Data
 PyYAML = "^6.0.1"
 requests = "^2.31.0"
-Appium-Python-Client = "^4.0.0"
+Faker = "37.3.0"
+pytest-base-url = "2.1.0"
+# Reporting & Coverage
+pytest-cov = "6.0.0"
+pytest-html = "4.1.1"
+pytest-metadata = "3.1.1"
+pytest-mock = "3.14.0"
+anyio = "4.9.0"
 
 [build-system]
 requires = ["poetry-core>=1.7.0"]
