@@ -7,7 +7,6 @@ stages:
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
   ANDROID_HOME: "C:\\Users\\n.krotsik\\AppData\\Local\\Android\\Sdk"
-  # Hardcoding the ADB path ensures we don't use the Desktop version by mistake
   ADB_EXE: "C:\\Users\\n.krotsik\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe"
   ALLURE_PATH: "C:\\Users\\n.krotsik\\Desktop\\EasyFin\\allure-2.36.0\\allure-2.36.0\\bin\\allure.bat"
 
@@ -26,8 +25,7 @@ mobile_tests:
   stage: test
   tags:
     - mobile-runner
-  dependencies:
-    - install_deps
+
   before_script:
     # 0. Safe cleanup
     - |
@@ -77,7 +75,7 @@ mobile_tests:
   script:
     - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
     - $env:PYTHONPATH = "."
-    - poetry run pytest tests/test_login_navigation.py
+    - poetry run pytest
 
   after_script:
     - echo "Cleaning up the device..."
