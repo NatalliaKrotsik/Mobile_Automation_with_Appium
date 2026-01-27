@@ -27,17 +27,20 @@ mobile_tests:
     - mobile-runner
 
   before_script:
-    # 0. Safe cleanup
+    # 0. Safe cleanup of existing processes (non-fatal)
     - |
       $procNames = "emulator-arm", "qemu-system-x86_64", "node"
       foreach ($name in $procNames) {
-          $p = Get-Process -Name $name -ErrorAction SilentlyContinue
-          if ($p) { 
-              Write-Host "Stopping existing process: $name"
-              $p | Stop-Process -Force 
-          }
+        try {
+          $p = Get-Process -Name $name -ErrorAction Stop
+          if ($p) { $p | Stop-Process -Force }
+          Write-Host "Stopped process: $name"
+        } catch {
+          Write-Host "Process $name not running"
+        }
       }
-    # Fix: Double quotes allow $env variable expansion while handling spaces
+
+    # 0b. Restart ADB server (handle spaces safely)
     - if (Test-Path "$env:ADB_EXE") { & "$env:ADB_EXE" kill-server; & "$env:ADB_EXE" start-server }
 
     # 1. Start/Check Emulator
@@ -45,41 +48,55 @@ mobile_tests:
       $emulatorRunning = & "$env:ADB_EXE" devices | Select-String -Pattern "\tdevice$"
       if (-not $emulatorRunning) {
         Write-Host "Starting headless emulator from SDK..."
-        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -read-only" -NoNewWindow
-        
+        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" `
+          -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -read-only" `
+          -NoNewWindow
+
         Write-Host "Waiting for ADB to detect device..."
         & "$env:ADB_EXE" wait-for-device
-        
+
         Write-Host "Waiting for Android OS boot..."
         $booted = $false
         $timer = 0
         while (-not $booted -and $timer -lt 40) {
           $status = & "$env:ADB_EXE" shell getprop sys.boot_completed
-          if ($status -and $status.Trim() -eq "1") { 
-            $booted = $true 
+          if ($status -and $status.Trim() -eq "1") {
+            $booted = $true
             Write-Host "Emulator is ready!"
-          } else { 
-            Start-Sleep -s 5
+          } else {
+            Start-Sleep -Seconds 5
             $timer++
-            Write-Host "Still booting (Attempt $timer)..." 
+            Write-Host "Still booting (Attempt $timer)..."
           }
         }
-        if (-not $booted) { throw "Emulator failed to boot within timeout." }
+
+        if (-not $booted) { 
+          Write-Warning "Emulator failed to boot within timeout. Continuing anyway..."
+        }
       }
 
     # 2. Start Appium Server
     - Write-Host "Starting Appium..."
     - Start-Process cmd.exe -ArgumentList "/c appium" -NoNewWindow
-    - Start-Sleep -s 15
+    - Start-Sleep -Seconds 15
 
   script:
-    - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
+    # Ensure results directory exists before tests
+    - if (-not (Test-Path "allure-results")) { New-Item -ItemType Directory -Path "allure-results" }
     - $env:PYTHONPATH = "."
     - poetry run pytest
 
   after_script:
-    - echo "Cleaning up the device..."
-    - if (Test-Path "$env:ADB_EXE") { & "$env:ADB_EXE" shell pm clear com.andersenlab.easyfin; & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin }
+    - Write-Host "Cleaning up the device..."
+    - |
+      try {
+        if (Test-Path "$env:ADB_EXE") {
+          & "$env:ADB_EXE" shell pm clear com.andersenlab.easyfin
+          & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin
+        }
+      } catch {
+        Write-Warning "Device cleanup failed, but continuing..."
+      }
 
   artifacts:
     when: always
