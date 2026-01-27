@@ -27,6 +27,9 @@ mobile_tests:
     - mobile-runner
 
   before_script:
+
+    # Load environment variables from .env
+    - .\load_env.ps1
     # 0. Safe cleanup of existing processes (non-fatal)
     - |
       $procNames = "emulator-arm", "qemu-system-x86_64", "node"
