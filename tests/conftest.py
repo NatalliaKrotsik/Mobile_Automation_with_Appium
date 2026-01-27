@@ -1,7 +1,6 @@
 import pytest
 import allure
 import logging
-import json
 from allure_commons.types import AttachmentType
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
