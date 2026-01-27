@@ -6,8 +6,10 @@ stages:
 
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  # Use double backslashes for Windows paths in variables
+  ANDROID_HOME: "C:\\Users\\n.krotsik\\AppData\\Local\\Android\\Sdk"
+  ALLURE_PATH: "C:\\Users\\n.krotsik\\Desktop\\EasyFin\\allure-2.36.0\\allure-2.36.0\\bin\\allure.bat"
 
-# Optional: Separate setup to cache dependencies
 install_deps:
   stage: setup
   tags:
@@ -17,18 +19,26 @@ install_deps:
   artifacts:
     paths:
       - .venv/
+    expire_in: 1 hour
 
 mobile_tests:
   stage: test
   tags:
     - mobile-runner
+  dependencies:
+    - install_deps
   before_script:
-    # 1. Check if an emulator is already running
+    # 0. Clean up any hanging processes from previous failed runs
+    - Stop-Process -Name "emulator-arm", "qemu-system-x86_64", "node" -ErrorAction SilentlyContinue
+    - adb kill-server
+    - adb start-server
+
+    # 1. Start/Check Emulator
     - |
       $emulatorRunning = adb devices | Select-String -Pattern "\tdevice$"
       if (-not $emulatorRunning) {
-        Write-Host "No emulator detected. Starting headless emulator..."
-        Start-Process "C:\Users\n.krotsik\AppData\Local\Android\Sdk\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -selinux permissive" -NoNewWindow
+        Write-Host "Starting headless emulator..."
+        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -selinux permissive" -NoNewWindow
         
         Write-Host "Waiting for Android to boot..."
         $booted = $false
@@ -40,10 +50,10 @@ mobile_tests:
         Write-Host "Emulator is ready!"
       }
 
-    # 2. Start Appium (The Fix for the Win32 Error)
-    - Write-Host "Starting Appium Server..."
+    # 2. Start Appium Server
+    - Write-Host "Starting Appium..."
     - Start-Process cmd.exe -ArgumentList "/c appium" -NoNewWindow
-    - Start-Sleep -s 10
+    - Start-Sleep -s 15
 
   script:
     - if (-not (Test-Path allure-results)) { New-Item -ItemType Directory -Path allure-results }
@@ -52,26 +62,26 @@ mobile_tests:
 
   after_script:
     - echo "Cleaning up the device..."
-    - adb shell pm clear com.andersenlab.easyfin
-    - adb shell am force-stop com.andersenlab.easyfin
+    - adb shell pm clear com.andersenlab.easyfin -ErrorAction SilentlyContinue
+    - adb shell am force-stop com.andersenlab.easyfin -ErrorAction SilentlyContinue
 
   artifacts:
     when: always
     paths:
-      - allure-results/*
+      - allure-results/
     expire_in: 1 day
 
 allure_report:
   stage: report
   tags:
     - mobile-runner
+  dependencies:
+    - mobile_tests
   when: always
   script:
-    # 1. Force the creation of the output directory in the root
-    - if not exist "allure-report" mkdir "allure-report"
-    # 2. Use the EXACT path shown in your file tree for results
-    # We use ./ to ensure we stay in the current build directory
-    - '& "C:/Users/n.krotsik/Desktop/EasyFin/allure-2.36.0/allure-2.36.0/bin/allure.bat" generate ./allure-results -o ./allure-report --clean'
+    - if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
+    # Generate report using the absolute path variable
+    - '& "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean'
   artifacts:
     paths:
       - allure-report/
@@ -84,11 +94,10 @@ pages:
   dependencies:
     - allure_report
   script:
-    # Use PowerShell to ensure public is clean and fresh
     - if (Test-Path public) { Remove-Item -Recurse -Force public }
     - New-Item -ItemType Directory -Path public
-    # Copy using the dot slash to be explicit for Windows
-    - xcopy /s /e /y "allure-report\*" "public\"
+    # Using PowerShell Copy-Item for better reliability in CI
+    - Copy-Item -Path "allure-report\*" -Destination "public\" -Recurse -Force
   artifacts:
     paths:
       - public
