@@ -6,9 +6,6 @@ stages:
 
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
-  ANDROID_HOME: $env:ANDROID_HOME
-  ADB_EXE: $env:ADB_EXE
-  ALLURE_PATH: $env:ALLURE_PATH
 
 install_deps:
   stage: setup
@@ -30,6 +27,8 @@ mobile_tests:
 
     # Load environment variables from .env
     - .\load_env.ps1
+    - Write-Host "ADB_EXE is $env:ADB_EXE"
+    - Write-Host "ANDROID_HOME is $env:ANDROID_HOME"
 
     # 1. Start/Check Emulator
     - |
