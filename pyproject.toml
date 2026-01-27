@@ -14,7 +14,7 @@ pytest-xdist = "^3.5.0"
 allure-pytest = "2.14.2"
 # Mobile & Web Drivers
 Appium-Python-Client = "^4.0.0"
-playwright = "0.7.0"
+playwright = "^1.40.0"
 # Utilities & Data
 PyYAML = "^6.0.1"
 requests = "^2.31.0"
