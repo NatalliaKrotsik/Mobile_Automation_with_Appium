@@ -24,18 +24,9 @@ mobile_tests:
     - mobile-runner
 
   before_script:
+
     # Load environment variables from .env
     - .\load_env.ps1
-
-    # Debug print to verify variables
-    - Write-Host "ADB_EXE = '$env:ADB_EXE'"
-    - Write-Host "ANDROID_HOME = '$env:ANDROID_HOME'"
-    - Write-Host "ANDROID_SDK_ROOT = '$env:ANDROID_SDK_ROOT'"
-    - Write-Host "ALLURE_PATH = '$env:ALLURE_PATH'"
-
-    # Check if paths exist
-    - if (-not (Test-Path "$env:ADB_EXE")) { throw "ADB_EXE not found at $env:ADB_EXE" }
-    - if (-not (Test-Path "$env:ANDROID_HOME\emulator\emulator.exe")) { throw "Emulator not found at $env:ANDROID_HOME\emulator\emulator.exe" }
 
     # 1. Start/Check Emulator
     - |
@@ -64,7 +55,9 @@ mobile_tests:
           }
         }
 
-        if (-not $booted) { Write-Warning "Emulator failed to boot within timeout. Continuing anyway..." }
+        if (-not $booted) { 
+          Write-Warning "Emulator failed to boot within timeout. Continuing anyway..."
+        }
       }
 
     # 2. Start Appium Server
