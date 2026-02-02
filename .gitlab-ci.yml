@@ -70,12 +70,15 @@ mobile_tests:
 
   after_script:
     - |
-      Write-Host "Cleaning up background processes to release Runner..."
-      # This is the 'secret sauce' to stop the job from hanging:
+      Write-Host "Releasing Runner by killing background tasks..."
+      # 1. Kill Appium (Node) - This is the primary reason for the hang
       Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
-      Get-Process -Name "qemu-system-x86_64", "emulator" -ErrorAction SilentlyContinue | Stop-Process -Force
       
-      if (Test-Path "$env:ADB_EXE") {
+      # 2. Kill the Emulator (Optional, only if you want a fresh emulator next time)
+      # Get-Process -Name "qemu-system-x86_64", "emulator" -ErrorAction SilentlyContinue | Stop-Process -Force
+      
+      # 3. Force stop your app specifically
+      if ($env:ADB_EXE) {
         & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin
       }
 
