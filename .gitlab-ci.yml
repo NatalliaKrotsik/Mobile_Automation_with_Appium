@@ -20,6 +20,7 @@ install_deps:
 
 mobile_tests:
   stage: test
+  timeout: 15 minutes
   tags:
     - mobile-runner
   dependencies:
@@ -56,12 +57,15 @@ mobile_tests:
         if (-not $booted) { 
           Write-Warning "Emulator failed to boot within timeout. Continuing anyway..."
         }
+      } else {
+        Write-Host "Emulator already running, skipping startup."
       }
 
     # 2. Start Appium Server
-    - Write-Host "Starting Appium..."
-    - Start-Process cmd.exe -ArgumentList "/c appium" -NoNewWindow
+    - Write-Host "Starting Appium server..."
+    - $global:appiumJob = Start-Job -ScriptBlock { appium }
     - Start-Sleep -Seconds 15
+    - Write-Host "Appium started (Job ID: $($global:appiumJob.Id))"
 
   script:
     - if (-not (Test-Path "allure-results")) { New-Item -ItemType Directory -Path "allure-results" }
@@ -70,17 +74,50 @@ mobile_tests:
 
   after_script:
     - |
-      Write-Host "Releasing Runner by killing background tasks..."
-      # 1. Kill Appium (Node) - This is the primary reason for the hang
-      Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
+      Write-Host "======================================"
+      Write-Host "Starting cleanup process..."
+      Write-Host "======================================"
       
-      # 2. Kill the Emulator (Optional, only if you want a fresh emulator next time)
+      # 1. Stop all PowerShell background jobs (Appium)
+      Write-Host "Stopping background jobs..."
+      Get-Job | ForEach-Object {
+        Write-Host "Stopping job: $($_.Name) (ID: $($_.Id))"
+        Stop-Job -Id $_.Id -ErrorAction SilentlyContinue
+        Remove-Job -Id $_.Id -Force -ErrorAction SilentlyContinue
+      }
+      
+      # 2. Kill all Node processes (Appium server)
+      Write-Host "Killing Node.js processes (Appium)..."
+      $nodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue
+      if ($nodeProcesses) {
+        $nodeProcesses | ForEach-Object {
+          Write-Host "Killing Node process: PID $($_.Id)"
+          Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "All Node processes terminated."
+      } else {
+        Write-Host "No Node processes found."
+      }
+      
+      # 3. Force stop the test app
+      Write-Host "Force stopping app: com.andersenlab.easyfin"
+      if (Test-Path $env:ADB_EXE) {
+        & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin 2>$null
+      }
+      
+      # 4. Kill ADB server for clean state
+      Write-Host "Stopping ADB server..."
+      if (Test-Path $env:ADB_EXE) {
+        & "$env:ADB_EXE" kill-server 2>$null
+      }
+      
+      # 5. Optional: Kill emulator (uncomment if you want fresh emulator each run)
+      # Write-Host "Stopping emulator..."
       # Get-Process -Name "qemu-system-x86_64", "emulator" -ErrorAction SilentlyContinue | Stop-Process -Force
       
-      # 3. Force stop your app specifically
-      if ($env:ADB_EXE) {
-        & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin
-      }
+      Write-Host "======================================"
+      Write-Host "Cleanup completed successfully!"
+      Write-Host "======================================"
 
   artifacts:
     when: always
@@ -90,6 +127,7 @@ mobile_tests:
 
 allure_report:
   stage: report
+  timeout: 5 minutes
   tags:
     - mobile-runner
   dependencies:
@@ -97,8 +135,10 @@ allure_report:
   when: always
   script:
     - |
+      Write-Host "Generating Allure report..."
       if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
       & "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean
+      Write-Host "Allure report generated successfully."
   artifacts:
     paths:
       - allure-report/
@@ -106,14 +146,21 @@ allure_report:
 
 pages:
   stage: deploy
+  timeout: 5 minutes
   tags:
     - mobile-runner
   dependencies:
     - allure_report
   script:
-    - if (Test-Path public) { Remove-Item -Recurse -Force public }
-    - New-Item -ItemType Directory -Path public
-    - Copy-Item -Path "allure-report\*" -Destination "public\" -Recurse -Force
+    - |
+      Write-Host "Preparing pages for deployment..."
+      if (Test-Path public) { 
+        Remove-Item -Recurse -Force public 
+        Write-Host "Removed existing public directory."
+      }
+      New-Item -ItemType Directory -Path public
+      Copy-Item -Path "allure-report\*" -Destination "public\" -Recurse -Force
+      Write-Host "Pages prepared successfully."
   artifacts:
     paths:
       - public
