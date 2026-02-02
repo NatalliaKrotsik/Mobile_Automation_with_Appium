@@ -25,16 +25,13 @@ mobile_tests:
 
   before_script:
 
-    # Load environment variables from .env
-    - .\load_env.ps1
-
     # 1. Start/Check Emulator
     - |
       $emulatorRunning = & "$env:ADB_EXE" devices | Select-String -Pattern "\tdevice$"
       if (-not $emulatorRunning) {
-        Write-Host "Starting headless emulator from SDK..."
+        Write-Host "Starting emulator: $env:DEVICE_NAME"
         Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" `
-          -ArgumentList "-avd Pixel_6_Pro_API_36_for_test_Easy-fin -no-window -no-audio -no-snapshot -read-only" `
+          -ArgumentList "-avd $env:DEVICE_NAME -no-window -no-audio" `
           -NoNewWindow
 
         Write-Host "Waiting for ADB to detect device..."
@@ -42,18 +39,16 @@ mobile_tests:
 
         Write-Host "Waiting for Android OS boot..."
         $booted = $false
-        $timer = 0
-        while (-not $booted -and $timer -lt 40) {
+        while (-not $booted) {
           $status = & "$env:ADB_EXE" shell getprop sys.boot_completed
-          if ($status -and $status.Trim() -eq "1") {
-            $booted = $true
-            Write-Host "Emulator is ready!"
-          } else {
-            Start-Sleep -Seconds 5
-            $timer++
-            Write-Host "Still booting (Attempt $timer)..."
+          if ($status -and $status.Trim() -eq "1") { 
+            $booted = $true 
+            Write-Host "Device is ready!"
+          } else { 
+            Start-Sleep -Seconds 5 
           }
         }
+      }
 
         if (-not $booted) { 
           Write-Warning "Emulator failed to boot within timeout. Continuing anyway..."

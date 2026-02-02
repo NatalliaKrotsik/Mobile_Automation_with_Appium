@@ -1,4 +1,3 @@
-import pytest
 from framework.pages.android.login_page import LoginPage
 
 def test_navigation_to_login_form(driver):

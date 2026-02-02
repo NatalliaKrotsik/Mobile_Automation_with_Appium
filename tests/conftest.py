@@ -18,7 +18,7 @@ def driver(request):
 
     if platform == "android":
         options = UiAutomator2Options()
-        options.device_name = "Pixel_6_Pro_API_36_for_test_Easy-fin"
+        options.device_name = "Pixel_6"
         # Using forward slashes is safer for Python strings on Windows
         options.app = "C:/Users/n.krotsik/Desktop/EasyFin-Android/easy-fin-android/app/build/outputs/apk/debug/app-debug.apk"
         options.automation_name = "UIAutomator2"
