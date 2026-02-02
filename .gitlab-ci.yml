@@ -32,9 +32,7 @@ mobile_tests:
       
       if (-not $emulatorRunning) {
         Write-Host "Starting emulator: $env:DEVICE_NAME"
-        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" `
-          -ArgumentList "-avd $env:DEVICE_NAME -no-window -no-audio" `
-          -NoNewWindow
+        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList "-avd $env:DEVICE_NAME -no-window -no-audio" -NoNewWindow
 
         Write-Host "Waiting for ADB to detect device..."
         & "$env:ADB_EXE" wait-for-device
@@ -42,7 +40,6 @@ mobile_tests:
         Write-Host "Waiting for Android OS boot..."
         $booted = $false
         $timer = 0
-        # Increased timeout slightly for reliability
         while (-not $booted -and $timer -lt 50) {
           $status = & "$env:ADB_EXE" shell getprop sys.boot_completed
           if ($status -and $status.Trim() -eq "1") {
@@ -60,12 +57,12 @@ mobile_tests:
       } else {
         Write-Host "Emulator already running, skipping startup."
       }
-
-    # 2. Start Appium Server
-    - Write-Host "Starting Appium server..."
-    - $global:appiumJob = Start-Job -ScriptBlock { appium }
-    - Start-Sleep -Seconds 15
-    - Write-Host "Appium started (Job ID: $($global:appiumJob.Id))"
+      
+      # 2. Start Appium Server
+      Write-Host "Starting Appium server..."
+      $global:appiumJob = Start-Job -ScriptBlock { appium }
+      Start-Sleep -Seconds 15
+      Write-Host "Appium started (Job ID: $($global:appiumJob.Id))"
 
   script:
     - if (-not (Test-Path "allure-results")) { New-Item -ItemType Directory -Path "allure-results" }
