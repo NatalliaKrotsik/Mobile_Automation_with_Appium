@@ -66,21 +66,20 @@ mobile_tests:
   script:
     - if (-not (Test-Path "allure-results")) { New-Item -ItemType Directory -Path "allure-results" }
     - $env:PYTHONPATH = "."
-    # Use --alluredir to ensure results are mapped correctly
     - poetry run pytest --alluredir=allure-results
 
   after_script:
     - |
-      Write-Host "Cleaning up the device and background processes..."
-      try {
-        # Kill Appium/Node to prevent the job from hanging/staying 'stuck'
-        Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
-        
-        if (Test-Path "$env:ADB_EXE") {
-          & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin
-        }
-      } catch {
-        Write-Warning "Cleanup had issues, but finishing job..."
+      Write-Host "Forcefully stopping background processes to release Runner..."
+      # 1. Kill Appium (Node.js) - This is usually why it stays 'Running'
+      Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
+      
+      # 2. Kill the Emulator processes (Optional: only if you don't want it 'warm')
+      # Get-Process -Name "qemu-system-x86_64", "emulator" -ErrorAction SilentlyContinue | Stop-Process -Force
+      
+      # 3. Stop the specific app
+      if (Test-Path "$env:ADB_EXE") {
+        & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin
       }
 
   artifacts:
