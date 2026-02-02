@@ -22,12 +22,13 @@ mobile_tests:
   stage: test
   tags:
     - mobile-runner
-
+  dependencies:
+    - install_deps
   before_script:
-
-    # 1. Start/Check Emulator
     - |
+      # 1. Start/Check Emulator
       $emulatorRunning = & "$env:ADB_EXE" devices | Select-String -Pattern "\tdevice$"
+      
       if (-not $emulatorRunning) {
         Write-Host "Starting emulator: $env:DEVICE_NAME"
         Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" `
@@ -39,17 +40,19 @@ mobile_tests:
 
         Write-Host "Waiting for Android OS boot..."
         $booted = $false
-        while (-not $booted) {
+        $timer = 0
+        # Increased timeout slightly for reliability
+        while (-not $booted -and $timer -lt 50) {
           $status = & "$env:ADB_EXE" shell getprop sys.boot_completed
-          if ($status -and $status.Trim() -eq "1") { 
-            $booted = $true 
-            Write-Host "Device is ready!"
-          } else { 
-            Start-Sleep -Seconds 5 
+          if ($status -and $status.Trim() -eq "1") {
+            $booted = $true
+            Write-Host "Emulator is ready!"
+          } else {
+            Start-Sleep -Seconds 5
+            $timer++
+            Write-Host "Still booting (Attempt $timer)..."
           }
         }
-      }
-
         if (-not $booted) { 
           Write-Warning "Emulator failed to boot within timeout. Continuing anyway..."
         }
@@ -61,21 +64,23 @@ mobile_tests:
     - Start-Sleep -Seconds 15
 
   script:
-    # Ensure results directory exists before tests
     - if (-not (Test-Path "allure-results")) { New-Item -ItemType Directory -Path "allure-results" }
     - $env:PYTHONPATH = "."
-    - poetry run pytest
+    # Use --alluredir to ensure results are mapped correctly
+    - poetry run pytest --alluredir=allure-results
 
   after_script:
-    - Write-Host "Cleaning up the device..."
     - |
+      Write-Host "Cleaning up the device and background processes..."
       try {
+        # Kill Appium/Node to prevent the job from hanging/staying 'stuck'
+        Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
+        
         if (Test-Path "$env:ADB_EXE") {
-          & "$env:ADB_EXE" shell pm clear com.andersenlab.easyfin
           & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin
         }
       } catch {
-        Write-Warning "Device cleanup failed, but continuing..."
+        Write-Warning "Cleanup had issues, but finishing job..."
       }
 
   artifacts:
