@@ -68,23 +68,7 @@ test_android:
       Write-Host "Starting Appium server..."
       Write-Host "==============================="
 
-      $appiumProcess = Start-Process appium -PassThru
-      $global:AppiumPID = $appiumProcess.Id
-
-      # Wait until Appium is ready
-      $maxWait = 30
-      $elapsed = 0
-      while ($elapsed -lt $maxWait) {
-        try {
-          Invoke-WebRequest http://127.0.0.1:4723/status `
-            -UseBasicParsing -TimeoutSec 2 | Out-Null
-          Write-Host "Appium is ready!"
-          break
-        } catch {
-          Start-Sleep -Seconds 2
-          $elapsed += 2
-        }
-      }
+      $global:appiumJob = Start-Job -ScriptBlock { appium } Start-Sleep -Seconds 15 Write-Host "Appium started (Job ID: $($global:appiumJob.Id))"
 
   script:
     - $env:PYTHONPATH = "."
