@@ -1,5 +1,6 @@
 import logging
 import allure
+from selenium.common import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -8,21 +9,36 @@ logger = logging.getLogger(__name__)
 class BasePage:
     def __init__(self, driver):
         self.driver = driver
-        self.wait = WebDriverWait(self.driver, 20)
+
+    def wait_for_clickable(self, locator, timeout=20):
+        return WebDriverWait(self.driver, timeout).until(
+            EC.element_to_be_clickable(locator)
+        )
+
+    def wait_for_visible(self, locator, timeout=20):
+        return WebDriverWait(self.driver, timeout).until(
+            EC.visibility_of_element_located(locator)
+        )
 
     @allure.step("Clicking element: {locator}")
     def click_element(self, locator):
         logger.info(f"Attempting to click: {locator}")
-        element = self.wait.until(EC.element_to_be_clickable(locator))
-        element.click()
+        self.wait_for_clickable(locator).click()
 
     @allure.step("Entering text '{text}' into {locator}")
     def enter_text(self, locator, text):
-        logger.info(f"Entering '{text}' into element: {locator}")
-        element = self.wait.until(EC.presence_of_element_located(locator))
+        element = self.wait_for_visible(locator)
         element.clear()
         element.send_keys(text)
 
     def get_text(self, locator):
-        logger.info(f"Getting text from: {locator}")
-        return self.wait.until(EC.presence_of_element_located(locator)).text
+        return self.wait_for_visible(locator).text
+
+    def is_element_visible(self, locator, timeout=5) -> bool:
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.visibility_of_element_located(locator)
+            )
+            return True
+        except TimeoutException:
+            return False
