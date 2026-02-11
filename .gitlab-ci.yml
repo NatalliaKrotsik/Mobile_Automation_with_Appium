@@ -7,92 +7,124 @@ stages:
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
-# ----------------------------
-# Setup Stage
-# ----------------------------
 install_deps:
   stage: setup
   tags:
     - mobile-runner
   script:
-    - poetry install --no-interaction --no-root
+    - poetry install
   artifacts:
     paths:
       - .venv/
     expire_in: 1 hour
 
-
-# ----------------------------
-# Android Test Stage
-# ----------------------------
 test_android:
   stage: test
-  timeout: 20 minutes
+  timeout: 15 minutes
   tags:
     - mobile-runner
   dependencies:
     - install_deps
-
   before_script:
     - |
-      Write-Host "==============================="
-      Write-Host "Checking emulator status..."
-      Write-Host "==============================="
-
+      # 1. Start/Check Emulator
       $emulatorRunning = & "$env:ADB_EXE" devices | Select-String -Pattern "\tdevice$"
-
+      
       if (-not $emulatorRunning) {
         Write-Host "Starting emulator: $env:DEVICE_NAME"
-        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" `
-          -ArgumentList "-avd $env:DEVICE_NAME -no-window -no-audio" `
-          -PassThru | Out-Null
+        Start-Process "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList "-avd $env:DEVICE_NAME -no-window -no-audio" -NoNewWindow
 
+        Write-Host "Waiting for ADB to detect device..."
         & "$env:ADB_EXE" wait-for-device
 
         Write-Host "Waiting for Android OS boot..."
-        $maxAttempts = 60
-        for ($i=0; $i -lt $maxAttempts; $i++) {
-          $boot = & "$env:ADB_EXE" shell getprop sys.boot_completed
-          if ($boot.Trim() -eq "1") {
-            Write-Host "Emulator boot completed!"
-            break
+        $booted = $false
+        $timer = 0
+        while (-not $booted -and $timer -lt 50) {
+          $status = & "$env:ADB_EXE" shell getprop sys.boot_completed
+          if ($status -and $status.Trim() -eq "1") {
+            $booted = $true
+            Write-Host "Emulator is ready!"
+          } else {
+            Start-Sleep -Seconds 5
+            $timer++
+            Write-Host "Still booting (Attempt $timer)..."
           }
-          Start-Sleep -Seconds 5
         }
+        if (-not $booted) { 
+          Write-Warning "Emulator failed to boot within timeout. Continuing anyway..."
+        }
+      } else {
+        Write-Host "Emulator already running, skipping startup."
       }
-      else {
-        Write-Host "Emulator already running."
-      }
-
-      Write-Host "==============================="
+      
+      # 2. Start Appium Server
       Write-Host "Starting Appium server..."
-      Write-Host "==============================="
-
-      $global:appiumJob = Start-Job -ScriptBlock { appium } Start-Sleep -Seconds 15 Write-Host "Appium started (Job ID: $($global:appiumJob.Id))"
+      $global:appiumJob = Start-Job -ScriptBlock { appium }
+      $maxWait = 30
+      $elapsed = 0
+      while ($elapsed -lt $maxWait) {
+          try {
+        Invoke-WebRequest http://localhost:4723/status -UseBasicParsing -TimeoutSec 2 | Out-Null
+        Write-Host "Appium is ready!"
+        break
+          } catch {
+        Start-Sleep -Seconds 2
+        $elapsed += 2
+          }
+        }
 
   script:
+    - if (-not (Test-Path "allure-results")) { New-Item -ItemType Directory -Path "allure-results" }
     - $env:PYTHONPATH = "."
-    - poetry run pytest tests/android/ --platform android
+    - poetry run pytest tests/android/
 
   after_script:
     - |
-      Write-Host "==============================="
-      Write-Host "Cleanup started..."
-      Write-Host "==============================="
-
-      # Stop Appium process safely
-      if ($global:AppiumPID) {
-        Write-Host "Stopping Appium (PID: $global:AppiumPID)"
-        Stop-Process -Id $global:AppiumPID -Force -ErrorAction SilentlyContinue
+      Write-Host "======================================"
+      Write-Host "Starting cleanup process..."
+      Write-Host "======================================"
+      
+      # 1. Stop all PowerShell background jobs (Appium)
+      Write-Host "Stopping background jobs..."
+      Get-Job | ForEach-Object {
+        Write-Host "Stopping job: $($_.Name) (ID: $($_.Id))"
+        Stop-Job -Id $_.Id -ErrorAction SilentlyContinue
+        Remove-Job -Id $_.Id -Force -ErrorAction SilentlyContinue
       }
-
-      # Force stop test app
+      
+      # 2. Kill all Node processes (Appium server)
+      Write-Host "Killing Node.js processes (Appium)..."
+      $nodeProcesses = Get-Process -Name "node" -ErrorAction SilentlyContinue
+      if ($nodeProcesses) {
+        $nodeProcesses | ForEach-Object {
+          Write-Host "Killing Node process: PID $($_.Id)"
+          Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "All Node processes terminated."
+      } else {
+        Write-Host "No Node processes found."
+      }
+      
+      # 3. Force stop the test app
+      Write-Host "Force stopping app: com.andersenlab.easyfin"
       if (Test-Path $env:ADB_EXE) {
         & "$env:ADB_EXE" shell am force-stop com.andersenlab.easyfin 2>$null
+      }
+      
+      # 4. Kill ADB server for clean state
+      Write-Host "Stopping ADB server..."
+      if (Test-Path $env:ADB_EXE) {
         & "$env:ADB_EXE" kill-server 2>$null
       }
-
-      Write-Host "Cleanup finished."
+      
+      # 5. Optional: Kill emulator (uncomment if you want fresh emulator each run)
+      # Write-Host "Stopping emulator..."
+      # Get-Process -Name "qemu-system-x86_64", "emulator" -ErrorAction SilentlyContinue | Stop-Process -Force
+      
+      Write-Host "======================================"
+      Write-Host "Cleanup completed successfully!"
+      Write-Host "======================================"
 
   artifacts:
     when: always
@@ -100,22 +132,14 @@ test_android:
       - allure-results/
     expire_in: 1 day
 
-
-# ----------------------------
-# iOS Test Stage (Future Mac Runner)
-# ----------------------------
 test_ios:
   stage: test
   tags:
-    - macos-runner
+    - macos-runner   # A future Mac Runner
   script:
-    - poetry run pytest tests/ios --platform ios
-  allow_failure: true
+    - poetry run pytest tests/ios
+  allow_failure: true # Keeps your pipeline green even if this fails
 
-
-# ----------------------------
-# Allure Report Stage
-# ----------------------------
 allure_report:
   stage: report
   timeout: 5 minutes
@@ -127,17 +151,14 @@ allure_report:
   script:
     - |
       Write-Host "Generating Allure report..."
+      if (-not (Test-Path allure-report)) { New-Item -ItemType Directory -Path allure-report }
       & "$env:ALLURE_PATH" generate ./allure-results -o ./allure-report --clean
-      Write-Host "Allure report generated."
+      Write-Host "Allure report generated successfully."
   artifacts:
     paths:
       - allure-report/
     expire_in: 1 day
 
-
-# ----------------------------
-# Deploy to GitLab Pages
-# ----------------------------
 pages:
   stage: deploy
   timeout: 5 minutes
@@ -147,16 +168,14 @@ pages:
     - allure_report
   script:
     - |
-      Write-Host "Preparing GitLab Pages..."
-
-      if (Test-Path public) {
-        Remove-Item -Recurse -Force public
+      Write-Host "Preparing pages for deployment..."
+      if (Test-Path public) { 
+        Remove-Item -Recurse -Force public 
+        Write-Host "Removed existing public directory."
       }
-
-      New-Item -ItemType Directory -Path public | Out-Null
+      New-Item -ItemType Directory -Path public
       Copy-Item -Path "allure-report\*" -Destination "public\" -Recurse -Force
-
-      Write-Host "Pages ready."
+      Write-Host "Pages prepared successfully."
   artifacts:
     paths:
       - public
