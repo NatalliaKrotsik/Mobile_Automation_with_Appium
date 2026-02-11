@@ -7,10 +7,10 @@ stages:
 variables:
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
 
-install_deps:
+install_deps_android:
   stage: setup
   tags:
-    - mobile-runner
+    - android-runner
   script:
     - poetry install
   artifacts:
@@ -22,9 +22,9 @@ test_android:
   stage: test
   timeout: 15 minutes
   tags:
-    - mobile-runner
+    - android-runner
   dependencies:
-    - install_deps
+    - install_deps_android
   before_script:
     - |
       # 1. Start/Check Emulator
@@ -132,19 +132,19 @@ test_android:
       - allure-results/
     expire_in: 1 day
 
-test_ios:
-  stage: test
-  tags:
-    - macos-runner   # A future Mac Runner
-  script:
-    - poetry run pytest tests/ios
-  allow_failure: true # Keeps your pipeline green even if this fails
+#test_ios:
+# stage: test
+#  tags:
+#   - macos-runner   # A future Mac Runner
+#  script:
+#   - poetry run pytest tests/ios
+# allow_failure: true # Keeps your pipeline green even if this fails
 
 allure_report:
   stage: report
   timeout: 5 minutes
   tags:
-    - mobile-runner
+    - android-runner
   dependencies:
     - test_android
   when: always
@@ -163,7 +163,7 @@ pages:
   stage: deploy
   timeout: 5 minutes
   tags:
-    - mobile-runner
+    - android-runner
   dependencies:
     - allure_report
   script:
