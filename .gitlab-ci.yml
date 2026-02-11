@@ -76,7 +76,7 @@ test_android:
       $elapsed = 0
       while ($elapsed -lt $maxWait) {
         try {
-          Invoke-WebRequest http://localhost:4723/status `
+          Invoke-WebRequest http://127.0.0.1:4723/status `
             -UseBasicParsing -TimeoutSec 2 | Out-Null
           Write-Host "Appium is ready!"
           break
